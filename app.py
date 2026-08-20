@@ -15,7 +15,10 @@ from flask import (Flask, render_template, request, jsonify,
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
-DATABASE = os.environ.get('DATABASE_URL', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'eleitores.db'))
+
+# Database: usa /tmp no Render (único diretório gravável)
+_db_dir = os.environ.get('RENDER_DISK', os.path.dirname(os.path.abspath(__file__)))
+DATABASE = os.path.join(_db_dir, 'eleitores.db')
 
 
 # ─── Banco de Dados ───────────────────────────────────────────
@@ -526,14 +529,13 @@ def api_stats():
 
 # ─── Iniciar ──────────────────────────────────────────────────
 
+# Sempre inicializa o banco ao importar (gunicorn importa o módulo)
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 5000))
     print("=" * 50)
     print("  CADASTRO DE ELEITORES")
     print(f"  Acesse: http://localhost:{port}")
     print("=" * 50)
     app.run(host='0.0.0.0', port=port, debug=True)
-else:
-    # Para produção (gunicorn)
-    init_db()
