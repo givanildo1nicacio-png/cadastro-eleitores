@@ -54,7 +54,6 @@ function renderizarTabela(eleitores) {
         <tr>
             <td><strong>${e.numero_titulo || e.titulo_eleitoral}</strong></td>
             <td>${e.nome_completo}</td>
-            <td>${e.cpf || '-'}</td>
             <td>${e.cidade ? e.cidade + '/' + (e.estado || '') : '-'}</td>
             <td>${e.zona_eleitoral && e.secao_eleitoral ? e.zona_eleitoral + ' / ' + e.secao_eleitoral : '-'}</td>
             <td>${e.telefone || '-'}</td>
@@ -78,7 +77,6 @@ function renderizarCards(eleitores) {
             <div class="card-name">${e.nome_completo}</div>
             <div class="card-info">
                 <div><span class="label">Nº Título:</span> ${e.numero_titulo || e.titulo_eleitoral}</div>
-                <div><span class="label">CPF:</span> ${e.cpf || '-'}</div>
                 <div><span class="label">Cidade:</span> ${e.cidade ? e.cidade + '/' + (e.estado || '') : '-'}</div>
                 <div><span class="label">Zona/Seção:</span> ${e.zona_eleitoral && e.secao_eleitoral ? e.zona_eleitoral + ' / ' + e.secao_eleitoral : '-'}</div>
                 <div><span class="label">Telefone:</span> ${e.telefone || '-'}</div>
@@ -119,7 +117,6 @@ async function editarEleitor(id) {
         // Preencher campos
         document.getElementById('numero_titulo').value = e.numero_titulo || e.titulo_eleitoral || '';
         document.getElementById('nome_completo').value = e.nome_completo || '';
-        document.getElementById('cpf').value = e.cpf || '';
         document.getElementById('data_nascimento').value = e.data_nascimento || '';
         document.getElementById('sexo').value = e.sexo || '';
         document.getElementById('telefone').value = e.telefone || '';
@@ -157,7 +154,6 @@ async function salvarEleitor() {
         titulo_eleitoral: numTitulo,
         numero_titulo: numTitulo,
         nome_completo: nome,
-        cpf: document.getElementById('cpf').value.trim(),
         data_nascimento: document.getElementById('data_nascimento').value,
         sexo: document.getElementById('sexo').value,
         telefone: document.getElementById('telefone').value.trim(),
@@ -286,15 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.value = e.target.value.replace(/\D/g, '').substring(0, 12);
     });
 
-    const cpfInput = document.getElementById('cpf');
-    cpfInput.addEventListener('input', (e) => {
-        let v = e.target.value.replace(/\D/g, '').substring(0, 11);
-        if (v.length > 9) v = v.replace(/(\d{3})(\d{3})(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
-        else if (v.length > 6) v = v.replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3');
-        else if (v.length > 3) v = v.replace(/(\d{3})(\d{1,3})/, '$1.$2');
-        e.target.value = v;
-    });
-
     const telInput = document.getElementById('telefone');
     telInput.addEventListener('input', (e) => {
         let v = e.target.value.replace(/\D/g, '').substring(0, 11);
@@ -326,3 +313,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === e.currentTarget) fecharModalConfirm();
     });
 });
+
+// ─── Exportar PDF ──────────────────────────────────────────
+
+function exportarPDF() {
+    window.location.href = '/api/export/pdf';
+    toast('Gerando PDF...', 'info');
+}
+
+// ─── Exportar Excel ────────────────────────────────────────
+
+function exportarExcel() {
+    window.location.href = '/api/export/excel';
+    toast('Gerando Excel...', 'info');
+}

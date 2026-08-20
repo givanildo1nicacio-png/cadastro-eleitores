@@ -52,7 +52,6 @@ def init_db():
             titulo_eleitoral TEXT NOT NULL UNIQUE,
             numero_titulo TEXT,
             nome_completo TEXT NOT NULL,
-            cpf TEXT,
             data_nascimento TEXT,
             sexo TEXT,
             telefone TEXT,
@@ -75,6 +74,15 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
+
+    # Migração: remover coluna cpf se existir
+    try:
+        conn2 = get_db()
+        conn2.execute('ALTER TABLE eleitores DROP COLUMN cpf')
+        conn2.commit()
+        conn2.close()
+    except Exception:
+        pass  # Coluna já removida ou não existe
 
 
 # ─── Autenticação ─────────────────────────────────────────────
@@ -362,10 +370,9 @@ def api_listar():
                LEFT JOIN usuarios u ON e.created_by = u.id
                WHERE e.nome_completo LIKE ?
                   OR e.titulo_eleitoral LIKE ?
-                  OR e.cpf LIKE ?
                   OR e.cidade LIKE ?
                ORDER BY e.nome_completo ASC''',
-            (f'%{busca}%', f'%{busca}%', f'%{busca}%', f'%{busca}%')
+            (f'%{busca}%', f'%{busca}%', f'%{busca}%')
         ).fetchall()
     else:
         eleitores = conn.execute(
@@ -391,17 +398,16 @@ def api_cadastrar():
     conn = get_db()
     try:
         conn.execute('''
-            INSERT INTO eleitores (
-                titulo_eleitoral, numero_titulo, nome_completo, cpf, data_nascimento,
-                sexo, telefone, email, cep, logradouro, numero,
-                complemento, bairro, cidade, estado,
-                zona_eleitoral, secao_eleitoral, observacoes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO eleitores (
+            titulo_eleitoral, numero_titulo, nome_completo, data_nascimento,
+            sexo, telefone, email, cep, logradouro, numero,
+            complemento, bairro, cidade, estado,
+            zona_eleitoral, secao_eleitoral, observacoes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('titulo_eleitoral', '').strip(),
             data.get('numero_titulo', '').strip(),
             data.get('nome_completo', '').strip(),
-            data.get('cpf', '').strip(),
             data.get('data_nascimento', '').strip(),
             data.get('sexo', '').strip(),
             data.get('telefone', '').strip(),
@@ -424,6 +430,7 @@ def api_cadastrar():
         return jsonify({'erro': 'Este título eleitoral já está cadastrado'}), 409
     finally:
         conn.close()
+
 
 
 @app.route('/api/eleitores/<int:id>', methods=['GET'])
@@ -457,7 +464,7 @@ def api_atualizar(id):
 
     conn.execute('''
         UPDATE eleitores SET
-            titulo_eleitoral = ?, numero_titulo = ?, nome_completo = ?, cpf = ?,
+            titulo_eleitoral = ?, numero_titulo = ?, nome_completo = ?,
             data_nascimento = ?, sexo = ?, telefone = ?, email = ?,
             cep = ?, logradouro = ?, numero = ?, complemento = ?,
             bairro = ?, cidade = ?, estado = ?,
@@ -468,7 +475,6 @@ def api_atualizar(id):
         data.get('titulo_eleitoral', '').strip(),
         data.get('numero_titulo', '').strip(),
         data.get('nome_completo', '').strip(),
-        data.get('cpf', '').strip(),
         data.get('data_nascimento', '').strip(),
         data.get('sexo', '').strip(),
         data.get('telefone', '').strip(),
@@ -528,6 +534,209 @@ def api_stats():
         'por_estado': [{'estado': e['estado'], 'count': e['c']} for e in por_estado],
         'por_usuario': [{'nome': u['nome'], 'count': u['c']} for u in por_usuario]
     })
+
+
+# ─── Exportar PDF ────────────────────────────────────────────
+
+@app.route('/api/export/pdf', methods=['GET'])
+@login_required
+def api_export_pdf():
+    """Exporta lista de eleitores em PDF"""
+    from fpdf import FPDF
+
+    conn = get_db()
+    eleitores = conn.execute(
+        '''SELECT e.*, u.nome as criado_por_nome
+           FROM eleitores e
+           LEFT JOIN usuarios u ON e.created_by = u.id
+           ORDER BY e.nome_completo ASC'''
+    ).fetchall()
+    conn.close()
+
+    pdf = FPDF(orientation='L', unit='mm', format='A4')
+    pdf.add_page()
+    pdf.set_auto_page_break(auto=True, margin=15)
+
+    # Título
+    pdf.set_font('Helvetica', 'B', 16)
+    pdf.cell(0, 10, 'Cadastro de Eleitores', ln=True, align='C')
+    pdf.set_font('Helvetica', '', 10)
+    pdf.cell(0, 8, f'Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M")}', ln=True, align='C')
+    pdf.cell(0, 6, f'Total: {len(eleitores)} eleitores', ln=True, align='C')
+    pdf.ln(8)
+
+    # Cabeçalho da tabela
+    colunas = [
+        ('Nº Título', 28),
+        ('Nome', 45),
+        ('Telefone', 28),
+        ('Cidade/UF', 35),
+        ('Zona', 15),
+        ('Seção', 15),
+        ('Bairro', 30),
+        ('Logradouro', 45),
+        ('Email', 40),
+    ]
+
+    pdf.set_font('Helvetica', 'B', 7)
+    pdf.set_fill_color(26, 82, 118)
+    pdf.set_text_color(255, 255, 255)
+    for titulo, largura in colunas:
+        pdf.cell(largura, 8, titulo, border=1, fill=True, align='C')
+    pdf.ln()
+
+    # Dados
+    pdf.set_font('Helvetica', '', 6.5)
+    pdf.set_text_color(0, 0, 0)
+    for i, e in enumerate(eleitores):
+        if pdf.get_y() > 180:
+            pdf.add_page()
+            pdf.set_font('Helvetica', 'B', 7)
+            pdf.set_fill_color(26, 82, 118)
+            pdf.set_text_color(255, 255, 255)
+            for titulo, largura in colunas:
+                pdf.cell(largura, 8, titulo, border=1, fill=True, align='C')
+            pdf.ln()
+            pdf.set_font('Helvetica', '', 6.5)
+            pdf.set_text_color(0, 0, 0)
+
+        cor_fundo = (240, 245, 250) if i % 2 == 0 else (255, 255, 255)
+        pdf.set_fill_color(*cor_fundo)
+
+        cidade_uf = f"{e['cidade'] or ''}/{e['estado'] or ''}" if e['cidade'] else '-'
+        zona_secao = f"{e['zona_eleitoral'] or ''}/{e['secao_eleitoral'] or ''}" if e['zona_eleitoral'] else '-'
+        endereco = f"{e['logradouro'] or ''}, {e['numero'] or 'S/N'}" if e['logradouro'] else '-'
+
+        dados = [
+            e['numero_titulo'] or e['titulo_eleitoral'] or '-',
+            (e['nome_completo'] or '-')[:30],
+            e['telefone'] or '-',
+            cidade_uf,
+            e['zona_eleitoral'] or '-',
+            e['secao_eleitoral'] or '-',
+            e['bairro'] or '-',
+            endereco[:35],
+            e['email'] or '-',
+        ]
+
+        for valor, (_, largura) in zip(dados, colunas):
+            pdf.cell(largura, 6, str(valor)[:40], border=1, fill=True)
+        pdf.ln()
+
+    # Gerar response
+    pdf_bytes = pdf.output()
+    from io import BytesIO
+    buf = BytesIO()
+    buf.write(pdf_bytes)
+    buf.seek(0)
+
+    from flask import send_file
+    return send_file(
+        buf,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=f'eleitores_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
+    )
+
+
+# ─── Exportar Excel ──────────────────────────────────────────
+
+@app.route('/api/export/excel', methods=['GET'])
+@login_required
+def api_export_excel():
+    """Exporta lista de eleitores em Excel"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from io import BytesIO
+
+    conn = get_db()
+    eleitores = conn.execute(
+        '''SELECT e.*, u.nome as criado_por_nome
+           FROM eleitores e
+           LEFT JOIN usuarios u ON e.created_by = u.id
+           ORDER BY e.nome_completo ASC'''
+    ).fetchall()
+    conn.close()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Eleitores'
+
+    # Estilos
+    header_font = Font(bold=True, color='FFFFFF', size=10)
+    header_fill = PatternFill(start_color='1A5276', end_color='1A5276', fill_type='solid')
+    header_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    # Cabeçalhos
+    cabecalhos = [
+        'Nº Título', 'Nome Completo', 'Data Nasc.', 'Sexo',
+        'Telefone', 'E-mail', 'CEP', 'Logradouro', 'Número',
+        'Complemento', 'Bairro', 'Cidade', 'Estado',
+        'Zona Eleitoral', 'Seção Eleitoral', 'Observações',
+        'Cadastrado por', 'Data Cadastro'
+    ]
+
+    for col, titulo in enumerate(cabecalhos, 1):
+        cell = ws.cell(row=1, column=col, value=titulo)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = border
+
+    # Dados
+    sexo_map = {'M': 'Masculino', 'F': 'Feminino', 'O': 'Outro'}
+    for row_idx, e in enumerate(eleitores, 2):
+        dados = [
+            e['numero_titulo'] or e['titulo_eleitoral'],
+            e['nome_completo'],
+            e['data_nascimento'],
+            sexo_map.get(e['sexo'], e['sexo']),
+            e['telefone'],
+            e['email'],
+            e['cep'],
+            e['logradouro'],
+            e['numero'],
+            e['complemento'],
+            e['bairro'],
+            e['cidade'],
+            e['estado'],
+            e['zona_eleitoral'],
+            e['secao_eleitoral'],
+            e['observacoes'],
+            e['criado_por_nome'],
+            e['created_at'],
+        ]
+        for col, valor in enumerate(dados, 1):
+            cell = ws.cell(row=row_idx, column=col, value=valor or '')
+            cell.border = border
+            cell.alignment = Alignment(vertical='center')
+
+    # Ajustar largura das colunas
+    larguras = [16, 30, 14, 12, 18, 28, 12, 30, 8, 15, 20, 20, 8, 12, 12, 25, 18, 18]
+    for i, largura in enumerate(larguras, 1):
+        ws.column_dimensions[chr(64 + i) if i <= 26 else chr(64 + (i-1)//26) + chr(65 + (i-1)%26)].width = largura
+
+    # Congelar primeira linha
+    ws.freeze_panes = 'A2'
+
+    # Salvar em buffer
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    from flask import send_file
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'eleitores_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+    )
 
 
 # ─── Iniciar ──────────────────────────────────────────────────
