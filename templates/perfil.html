@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Perfil - Cadastro de Eleitores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+    <div class="header-content">
+        <h1><span class="emoji">🗳️</span> Cadastro de Eleitores</h1>
+        <div class="header-right">
+            <a href="{{ url_for('index') }}" class="btn btn-sm btn-logout">← Voltar</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-logout">Sair</a>
+        </div>
+    </div>
+</header>
+
+<!-- Container -->
+<div class="container">
+
+    <!-- Perfil Card -->
+    <div class="profile-grid">
+
+        <!-- Dados da Conta -->
+        <div class="card">
+            <div class="card-header">
+                <span>👤 Meu Perfil</span>
+            </div>
+            <div class="card-body">
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <!-- Info do perfil -->
+                <div class="profile-info">
+                    <div class="profile-avatar">
+                        {{ usuario.nome[0] | upper }}
+                    </div>
+                    <div class="profile-details">
+                        <h3>{{ usuario.nome }}</h3>
+                        <p>{{ usuario.email }}</p>
+                        <span class="profile-badge">Membro desde {{ usuario.created_at[:10] }}</span>
+                    </div>
+                </div>
+
+                <!-- Estatísticas -->
+                <div class="profile-stats">
+                    <div class="stat-box">
+                        <div class="stat-number">{{ stats.total }}</div>
+                        <div class="stat-label">Eleitores Cadastrados</div>
+                    </div>
+                </div>
+
+                <!-- Formulário: Atualizar Perfil -->
+                <form method="POST" action="{{ url_for('perfil') }}">
+                    <input type="hidden" name="acao" value="atualizar_perfil">
+
+                    <div class="form-section">
+                        <h3>✏️ Editar Dados</h3>
+
+                        <div class="form-group">
+                            <label>Nome completo</label>
+                            <input type="text" name="nome" value="{{ usuario.nome }}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" name="email" value="{{ usuario.email }}" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            💾 Salvar Alterações
+                        </button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+
+        <!-- Alterar Senha -->
+        <div class="card">
+            <div class="card-header">
+                <span>🔒 Alterar Senha</span>
+            </div>
+            <div class="card-body">
+
+                <form method="POST" action="{{ url_for('perfil') }}">
+                    <input type="hidden" name="acao" value="alterar_senha">
+
+                    <div class="form-group">
+                        <label>Senha atual</label>
+                        <input type="password" name="senha_atual" placeholder="Digite sua senha atual" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nova senha (mínimo 6 caracteres)</label>
+                        <input type="password" name="nova_senha" placeholder="Digite a nova senha" minlength="6" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Confirmar nova senha</label>
+                        <input type="password" name="confirmar_senha" placeholder="Repita a nova senha" minlength="6" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Tem certeza que deseja alterar a senha?')">
+                        🔑 Alterar Senha
+                    </button>
+                </form>
+
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

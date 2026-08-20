@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro - Cadastro de Eleitores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">🗳️</div>
+                <h1>Criar Conta</h1>
+                <p>Preencha os dados para se cadastrar</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('registro') }}">
+                <div class="form-group">
+                    <label for="nome">👤 Nome completo</label>
+                    <input type="text" id="nome" name="nome"
+                           placeholder="Seu nome completo" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="email">📧 E-mail</label>
+                    <input type="email" id="email" name="email"
+                           placeholder="seu@email.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="senha">🔒 Senha (mínimo 6 caracteres)</label>
+                    <input type="password" id="senha" name="senha"
+                           placeholder="Crie uma senha" minlength="6" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmar_senha">🔒 Confirmar senha</label>
+                    <input type="password" id="confirmar_senha" name="confirmar_senha"
+                           placeholder="Repita a senha" minlength="6" required>
+                </div>
+
+                <button type="submit" class="btn btn-success btn-block">
+                    Criar Conta
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Já tem conta? <a href="{{ url_for('login') }}">Fazer login</a></p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

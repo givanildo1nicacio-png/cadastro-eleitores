@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Cadastro de Eleitores</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">🗳️</div>
+                <h1>Cadastro de Eleitores</h1>
+                <p>Faça login para acessar o sistema</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label for="email">📧 E-mail</label>
+                    <input type="email" id="email" name="email"
+                           placeholder="seu@email.com" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="senha">🔒 Senha</label>
+                    <input type="password" id="senha" name="senha"
+                           placeholder="Sua senha" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-block">
+                    Entrar
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Não tem conta? <a href="{{ url_for('registro') }}">Criar conta</a></p>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
