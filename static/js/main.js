@@ -52,7 +52,7 @@ function renderizarTabela(eleitores) {
     const tbody = document.getElementById('tabela-eleitores');
     tbody.innerHTML = eleitores.map(e => `
         <tr>
-            <td><strong>${e.titulo_eleitoral}</strong></td>
+            <td><strong>${e.numero_titulo || e.titulo_eleitoral}</strong></td>
             <td>${e.nome_completo}</td>
             <td>${e.cpf || '-'}</td>
             <td>${e.cidade ? e.cidade + '/' + (e.estado || '') : '-'}</td>
@@ -77,7 +77,7 @@ function renderizarCards(eleitores) {
         <div class="eleitor-card">
             <div class="card-name">${e.nome_completo}</div>
             <div class="card-info">
-                <div><span class="label">Título:</span> ${e.titulo_eleitoral}</div>
+                <div><span class="label">Nº Título:</span> ${e.numero_titulo || e.titulo_eleitoral}</div>
                 <div><span class="label">CPF:</span> ${e.cpf || '-'}</div>
                 <div><span class="label">Cidade:</span> ${e.cidade ? e.cidade + '/' + (e.estado || '') : '-'}</div>
                 <div><span class="label">Zona/Seção:</span> ${e.zona_eleitoral && e.secao_eleitoral ? e.zona_eleitoral + ' / ' + e.secao_eleitoral : '-'}</div>
@@ -117,7 +117,7 @@ async function editarEleitor(id) {
         document.getElementById('edit-id').value = e.id;
 
         // Preencher campos
-        document.getElementById('titulo_eleitoral').value = e.titulo_eleitoral || '';
+        document.getElementById('numero_titulo').value = e.numero_titulo || e.titulo_eleitoral || '';
         document.getElementById('nome_completo').value = e.nome_completo || '';
         document.getElementById('cpf').value = e.cpf || '';
         document.getElementById('data_nascimento').value = e.data_nascimento || '';
@@ -145,16 +145,17 @@ async function editarEleitor(id) {
 
 async function salvarEleitor() {
     const id = document.getElementById('edit-id').value;
-    const titulo = document.getElementById('titulo_eleitoral').value.trim();
+    const numTitulo = document.getElementById('numero_titulo').value.trim();
     const nome = document.getElementById('nome_completo').value.trim();
 
-    if (!titulo || !nome) {
-        toast('Preencha o Título Eleitoral e o Nome Completo', 'error');
+    if (!numTitulo || !nome) {
+        toast('Preencha o Nº do Título e o Nome Completo', 'error');
         return;
     }
 
     const data = {
-        titulo_eleitoral: titulo,
+        titulo_eleitoral: numTitulo,
+        numero_titulo: numTitulo,
         nome_completo: nome,
         cpf: document.getElementById('cpf').value.trim(),
         data_nascimento: document.getElementById('data_nascimento').value,
@@ -279,6 +280,12 @@ function toast(mensagem, tipo = 'info') {
 // ─── Máscara CPF ──────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Máscara Nº Título (apenas números, 12 dígitos)
+    const tituloInput = document.getElementById('numero_titulo');
+    tituloInput.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '').substring(0, 12);
+    });
+
     const cpfInput = document.getElementById('cpf');
     cpfInput.addEventListener('input', (e) => {
         let v = e.target.value.replace(/\D/g, '').substring(0, 11);

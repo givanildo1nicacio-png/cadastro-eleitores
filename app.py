@@ -50,6 +50,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS eleitores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             titulo_eleitoral TEXT NOT NULL UNIQUE,
+            numero_titulo TEXT,
             nome_completo TEXT NOT NULL,
             cpf TEXT,
             data_nascimento TEXT,
@@ -385,19 +386,20 @@ def api_cadastrar():
     data = request.get_json()
 
     if not data.get('titulo_eleitoral') or not data.get('nome_completo'):
-        return jsonify({'erro': 'Título eleitoral e nome são obrigatórios'}), 400
+        return jsonify({'erro': 'Nº do Título e nome são obrigatórios'}), 400
 
     conn = get_db()
     try:
         conn.execute('''
             INSERT INTO eleitores (
-                titulo_eleitoral, nome_completo, cpf, data_nascimento,
+                titulo_eleitoral, numero_titulo, nome_completo, cpf, data_nascimento,
                 sexo, telefone, email, cep, logradouro, numero,
                 complemento, bairro, cidade, estado,
                 zona_eleitoral, secao_eleitoral, observacoes, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('titulo_eleitoral', '').strip(),
+            data.get('numero_titulo', '').strip(),
             data.get('nome_completo', '').strip(),
             data.get('cpf', '').strip(),
             data.get('data_nascimento', '').strip(),
@@ -455,7 +457,7 @@ def api_atualizar(id):
 
     conn.execute('''
         UPDATE eleitores SET
-            titulo_eleitoral = ?, nome_completo = ?, cpf = ?,
+            titulo_eleitoral = ?, numero_titulo = ?, nome_completo = ?, cpf = ?,
             data_nascimento = ?, sexo = ?, telefone = ?, email = ?,
             cep = ?, logradouro = ?, numero = ?, complemento = ?,
             bairro = ?, cidade = ?, estado = ?,
@@ -464,6 +466,7 @@ def api_atualizar(id):
         WHERE id = ?
     ''', (
         data.get('titulo_eleitoral', '').strip(),
+        data.get('numero_titulo', '').strip(),
         data.get('nome_completo', '').strip(),
         data.get('cpf', '').strip(),
         data.get('data_nascimento', '').strip(),
