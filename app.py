@@ -34,11 +34,12 @@ def init_db():
     """Cria as tabelas se não existirem"""
     conn = get_db()
 
-    # Tabela de usuários
+    # Tabela de usuários (compatível com banco antigo que tem email)
     conn.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL UNIQUE,
+            nome TEXT NOT NULL,
+            email TEXT,
             senha_hash TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -54,6 +55,8 @@ def init_db():
             data_nascimento TEXT,
             sexo TEXT,
             telefone TEXT,
+            cpf TEXT,
+            email TEXT,
             cep TEXT,
             logradouro TEXT,
             numero TEXT,
@@ -73,14 +76,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-    # Migração: remover coluna cpf se existir
-    try:
-        conn2 = get_db()
-        conn2.execute('ALTER TABLE eleitores DROP COLUMN cpf')
-        conn2.commit()
-        conn2.close()
-    except Exception:
-        pass  # Coluna já removida ou não existe
 
 
 # ─── Autenticação ─────────────────────────────────────────────
@@ -140,6 +135,7 @@ def login():
             return render_template('login.html')
 
         conn = get_db()
+        # Busca por nome (compatível com banco antigo)
         user = conn.execute(
             'SELECT * FROM usuarios WHERE nome = ?', (nome,)
         ).fetchone()
@@ -177,28 +173,32 @@ def registro():
             return render_template('registro.html')
 
         conn = get_db()
-        try:
-            conn.execute(
-                'INSERT INTO usuarios (nome, senha_hash) VALUES (?, ?)',
-                (nome, hash_senha(senha))
-            )
-            conn.commit()
-
-            # Login automático após registro
-            user = conn.execute(
-                'SELECT * FROM usuarios WHERE nome = ?', (nome,)
-            ).fetchone()
-            conn.close()
-
-            session['usuario_id'] = user['id']
-            session['usuario_nome'] = user['nome']
-
-            flash('Conta criada com sucesso!', 'success')
-            return redirect(url_for('index'))
-        except sqlite3.IntegrityError:
+        # Verificar se nome já existe
+        existente = conn.execute(
+            'SELECT id FROM usuarios WHERE nome = ?', (nome,)
+        ).fetchone()
+        if existente:
             conn.close()
             flash('Este nome de usuário já está em uso', 'error')
             return render_template('registro.html')
+
+        conn.execute(
+            'INSERT INTO usuarios (nome, senha_hash) VALUES (?, ?)',
+            (nome, hash_senha(senha))
+        )
+        conn.commit()
+
+        # Login automático após registro
+        user = conn.execute(
+            'SELECT * FROM usuarios WHERE nome = ?', (nome,)
+        ).fetchone()
+        conn.close()
+
+        session['usuario_id'] = user['id']
+        session['usuario_nome'] = user['nome']
+
+        flash('Conta criada com sucesso!', 'success')
+        return redirect(url_for('index'))
 
     return render_template('registro.html')
 
