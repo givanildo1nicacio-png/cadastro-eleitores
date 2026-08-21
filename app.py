@@ -344,7 +344,9 @@ def index():
         '''SELECT e.*, u.nome as criado_por_nome
            FROM eleitores e
            LEFT JOIN usuarios u ON e.created_by = u.id
-           ORDER BY e.nome_completo ASC'''
+           WHERE e.created_by = ?
+           ORDER BY e.nome_completo ASC''',
+        (session['usuario_id'],)
     ).fetchall()
     total = len(eleitores)
     conn.close()
@@ -363,23 +365,28 @@ def api_listar():
     busca = request.args.get('busca', '').strip()
     conn = get_db()
 
+    usuario_id = session.get('usuario_id')
     if busca:
         eleitores = conn.execute(
             '''SELECT e.*, u.nome as criado_por_nome
                FROM eleitores e
                LEFT JOIN usuarios u ON e.created_by = u.id
-               WHERE e.nome_completo LIKE ?
-                  OR e.titulo_eleitoral LIKE ?
-                  OR e.cidade LIKE ?
+               WHERE e.created_by = ?
+                 AND (e.nome_completo LIKE ?
+                      OR e.titulo_eleitoral LIKE ?
+                      OR e.cidade LIKE ?
+                      OR e.bairro LIKE ?)
                ORDER BY e.nome_completo ASC''',
-            (f'%{busca}%', f'%{busca}%', f'%{busca}%')
+            (usuario_id, f'%{busca}%', f'%{busca}%', f'%{busca}%', f'%{busca}%')
         ).fetchall()
     else:
         eleitores = conn.execute(
             '''SELECT e.*, u.nome as criado_por_nome
                FROM eleitores e
                LEFT JOIN usuarios u ON e.created_by = u.id
-               ORDER BY e.nome_completo ASC'''
+               WHERE e.created_by = ?
+               ORDER BY e.nome_completo ASC''',
+            (usuario_id,)
         ).fetchall()
 
     conn.close()
@@ -517,16 +524,12 @@ def api_excluir(id):
 @login_required
 def api_stats():
     """API: estatísticas"""
+    usuario_id = session.get('usuario_id')
     conn = get_db()
-    total = conn.execute('SELECT COUNT(*) as c FROM eleitores').fetchone()['c']
+    total = conn.execute('SELECT COUNT(*) as c FROM eleitores WHERE created_by = ?', (usuario_id,)).fetchone()['c']
     por_estado = conn.execute(
-        'SELECT estado, COUNT(*) as c FROM eleitores WHERE estado != "" GROUP BY estado ORDER BY c DESC'
-    ).fetchall()
-    por_usuario = conn.execute(
-        '''SELECT u.nome, COUNT(e.id) as c
-           FROM eleitores e
-           JOIN usuarios u ON e.created_by = u.id
-           GROUP BY e.created_by ORDER BY c DESC'''
+        'SELECT estado, COUNT(*) as c FROM eleitores WHERE created_by = ? AND estado != "" GROUP BY estado ORDER BY c DESC',
+        (usuario_id,)
     ).fetchall()
     conn.close()
     return jsonify({
@@ -544,12 +547,15 @@ def api_export_pdf():
     """Exporta lista de eleitores em PDF"""
     from fpdf import FPDF
 
+    usuario_id = session.get('usuario_id')
     conn = get_db()
     eleitores = conn.execute(
         '''SELECT e.*, u.nome as criado_por_nome
            FROM eleitores e
            LEFT JOIN usuarios u ON e.created_by = u.id
-           ORDER BY e.nome_completo ASC'''
+           WHERE e.created_by = ?
+           ORDER BY e.nome_completo ASC''',
+        (usuario_id,)
     ).fetchall()
     conn.close()
 
@@ -649,12 +655,15 @@ def api_export_excel():
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from io import BytesIO
 
+    usuario_id = session.get('usuario_id')
     conn = get_db()
     eleitores = conn.execute(
         '''SELECT e.*, u.nome as criado_por_nome
            FROM eleitores e
            LEFT JOIN usuarios u ON e.created_by = u.id
-           ORDER BY e.nome_completo ASC'''
+           WHERE e.created_by = ?
+           ORDER BY e.nome_completo ASC''',
+        (usuario_id,)
     ).fetchall()
     conn.close()
 
