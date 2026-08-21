@@ -47,7 +47,6 @@
                     </div>
                     <div class="profile-details">
                         <h3>{{ usuario.nome }}</h3>
-                        <p>{{ usuario.email }}</p>
                         <span class="profile-badge">Membro desde {{ usuario.created_at[:10] }}</span>
                     </div>
                 </div>
@@ -68,13 +67,8 @@
                         <h3>✏️ Editar Dados</h3>
 
                         <div class="form-group">
-                            <label>Nome completo</label>
+                            <label>Nome de usuário</label>
                             <input type="text" name="nome" value="{{ usuario.nome }}" required>
-                        </div>
-
-                        <div class="form-group">
-                            <label>E-mail</label>
-                            <input type="email" name="email" value="{{ usuario.email }}" required>
                         </div>
 
                         <button type="submit" class="btn btn-primary">

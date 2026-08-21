@@ -38,8 +38,7 @@ def init_db():
     conn.execute('''
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
+            nome TEXT NOT NULL UNIQUE,
             senha_hash TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -55,7 +54,6 @@ def init_db():
             data_nascimento TEXT,
             sexo TEXT,
             telefone TEXT,
-            email TEXT,
             cep TEXT,
             logradouro TEXT,
             numero TEXT,
@@ -134,26 +132,25 @@ def get_usuario_logado():
 def login():
     """Página de login"""
     if request.method == 'POST':
-        email = request.form.get('email', '').strip().lower()
+        nome = request.form.get('nome', '').strip()
         senha = request.form.get('senha', '')
 
-        if not email or not senha:
-            flash('Preencha e-mail e senha', 'error')
+        if not nome or not senha:
+            flash('Preencha nome e senha', 'error')
             return render_template('login.html')
 
         conn = get_db()
         user = conn.execute(
-            'SELECT * FROM usuarios WHERE email = ?', (email,)
+            'SELECT * FROM usuarios WHERE nome = ?', (nome,)
         ).fetchone()
         conn.close()
 
         if user and verificar_senha(senha, user['senha_hash']):
             session['usuario_id'] = user['id']
             session['usuario_nome'] = user['nome']
-            session['usuario_email'] = user['email']
             return redirect(url_for('index'))
         else:
-            flash('E-mail ou senha incorretos', 'error')
+            flash('Nome ou senha incorretos', 'error')
             return render_template('login.html')
 
     return render_template('login.html')
@@ -164,11 +161,10 @@ def registro():
     """Página de registro"""
     if request.method == 'POST':
         nome = request.form.get('nome', '').strip()
-        email = request.form.get('email', '').strip().lower()
         senha = request.form.get('senha', '')
         confirmar = request.form.get('confirmar_senha', '')
 
-        if not nome or not email or not senha:
+        if not nome or not senha:
             flash('Preencha todos os campos', 'error')
             return render_template('registro.html')
 
@@ -183,26 +179,25 @@ def registro():
         conn = get_db()
         try:
             conn.execute(
-                'INSERT INTO usuarios (nome, email, senha_hash) VALUES (?, ?, ?)',
-                (nome, email, hash_senha(senha))
+                'INSERT INTO usuarios (nome, senha_hash) VALUES (?, ?)',
+                (nome, hash_senha(senha))
             )
             conn.commit()
 
             # Login automático após registro
             user = conn.execute(
-                'SELECT * FROM usuarios WHERE email = ?', (email,)
+                'SELECT * FROM usuarios WHERE nome = ?', (nome,)
             ).fetchone()
             conn.close()
 
             session['usuario_id'] = user['id']
             session['usuario_nome'] = user['nome']
-            session['usuario_email'] = user['email']
 
             flash('Conta criada com sucesso!', 'success')
             return redirect(url_for('index'))
         except sqlite3.IntegrityError:
             conn.close()
-            flash('Este e-mail já está cadastrado', 'error')
+            flash('Este nome de usuário já está em uso', 'error')
             return render_template('registro.html')
 
     return render_template('registro.html')
@@ -224,7 +219,7 @@ def perfil():
     """Página de perfil do usuário"""
     conn = get_db()
     usuario = conn.execute(
-        'SELECT id, nome, email, created_at FROM usuarios WHERE id = ?',
+        'SELECT id, nome, created_at FROM usuarios WHERE id = ?',
         (session['usuario_id'],)
     ).fetchone()
 
@@ -240,31 +235,29 @@ def perfil():
 
         if acao == 'atualizar_perfil':
             nome = request.form.get('nome', '').strip()
-            email = request.form.get('email', '').strip().lower()
 
-            if not nome or not email:
-                flash('Nome e e-mail são obrigatórios', 'error')
+            if not nome:
+                flash('Nome é obrigatório', 'error')
                 return render_template('perfil.html', usuario=dict(usuario), stats=dict(stats))
 
             conn = get_db()
             try:
                 conn.execute(
-                    'UPDATE usuarios SET nome = ?, email = ? WHERE id = ?',
-                    (nome, email, session['usuario_id'])
+                    'UPDATE usuarios SET nome = ? WHERE id = ?',
+                    (nome, session['usuario_id'])
                 )
                 conn.commit()
                 session['usuario_nome'] = nome
-                session['usuario_email'] = email
                 flash('Perfil atualizado com sucesso!', 'success')
             except sqlite3.IntegrityError:
-                flash('Este e-mail já está em uso por outra conta', 'error')
+                flash('Este nome de usuário já está em uso', 'error')
             finally:
                 conn.close()
 
             # Recarregar dados
             conn = get_db()
             usuario = conn.execute(
-                'SELECT id, nome, email, created_at FROM usuarios WHERE id = ?',
+                'SELECT id, nome, created_at FROM usuarios WHERE id = ?',
                 (session['usuario_id'],)
             ).fetchone()
             conn.close()
@@ -316,7 +309,7 @@ def api_perfil():
     """API: dados do perfil"""
     conn = get_db()
     user = conn.execute(
-        'SELECT id, nome, email, created_at FROM usuarios WHERE id = ?',
+        'SELECT id, nome, created_at FROM usuarios WHERE id = ?',
         (session['usuario_id'],)
     ).fetchone()
     stats = conn.execute(
@@ -327,7 +320,6 @@ def api_perfil():
     return jsonify({
         'id': user['id'],
         'nome': user['nome'],
-        'email': user['email'],
         'created_at': user['created_at'],
         'eleitores_cadastrados': stats['total']
     })
@@ -407,10 +399,10 @@ def api_cadastrar():
         conn.execute('''
         INSERT INTO eleitores (
             titulo_eleitoral, numero_titulo, nome_completo, data_nascimento,
-            sexo, telefone, email, cep, logradouro, numero,
+            sexo, telefone, cep, logradouro, numero,
             complemento, bairro, cidade, estado,
             zona_eleitoral, secao_eleitoral, observacoes, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data.get('titulo_eleitoral', '').strip(),
             data.get('numero_titulo', '').strip(),
@@ -418,7 +410,6 @@ def api_cadastrar():
             data.get('data_nascimento', '').strip(),
             data.get('sexo', '').strip(),
             data.get('telefone', '').strip(),
-            data.get('email', '').strip(),
             data.get('cep', '').strip(),
             data.get('logradouro', '').strip(),
             data.get('numero', '').strip(),
@@ -472,7 +463,7 @@ def api_atualizar(id):
     conn.execute('''
         UPDATE eleitores SET
             titulo_eleitoral = ?, numero_titulo = ?, nome_completo = ?,
-            data_nascimento = ?, sexo = ?, telefone = ?, email = ?,
+            data_nascimento = ?, sexo = ?, telefone = ?,
             cep = ?, logradouro = ?, numero = ?, complemento = ?,
             bairro = ?, cidade = ?, estado = ?,
             zona_eleitoral = ?, secao_eleitoral = ?, observacoes = ?,
@@ -485,7 +476,6 @@ def api_atualizar(id):
         data.get('data_nascimento', '').strip(),
         data.get('sexo', '').strip(),
         data.get('telefone', '').strip(),
-        data.get('email', '').strip(),
         data.get('cep', '').strip(),
         data.get('logradouro', '').strip(),
         data.get('numero', '').strip(),
@@ -574,14 +564,13 @@ def api_export_pdf():
     # Cabeçalho da tabela
     colunas = [
         ('Nº Título', 28),
-        ('Nome', 45),
+        ('Nome', 50),
         ('Telefone', 28),
         ('Cidade/UF', 35),
         ('Zona', 15),
         ('Seção', 15),
-        ('Bairro', 30),
-        ('Logradouro', 45),
-        ('Email', 40),
+        ('Bairro', 35),
+        ('Logradouro', 55),
     ]
 
     pdf.set_font('Helvetica', 'B', 7)
@@ -615,14 +604,13 @@ def api_export_pdf():
 
         dados = [
             e['numero_titulo'] or e['titulo_eleitoral'] or '-',
-            (e['nome_completo'] or '-')[:30],
+            (e['nome_completo'] or '-')[:35],
             e['telefone'] or '-',
             cidade_uf,
             e['zona_eleitoral'] or '-',
             e['secao_eleitoral'] or '-',
             e['bairro'] or '-',
-            endereco[:35],
-            e['email'] or '-',
+            endereco[:40],
         ]
 
         for valor, (_, largura) in zip(dados, colunas):
@@ -685,7 +673,7 @@ def api_export_excel():
     # Cabeçalhos
     cabecalhos = [
         'Nº Título', 'Nome Completo', 'Data Nasc.', 'Sexo',
-        'Telefone', 'E-mail', 'CEP', 'Logradouro', 'Número',
+        'Telefone', 'CEP', 'Logradouro', 'Número',
         'Complemento', 'Bairro', 'Cidade', 'Estado',
         'Zona Eleitoral', 'Seção Eleitoral', 'Observações',
         'Cadastrado por', 'Data Cadastro'
@@ -707,7 +695,6 @@ def api_export_excel():
             e['data_nascimento'],
             sexo_map.get(e['sexo'], e['sexo']),
             e['telefone'],
-            e['email'],
             e['cep'],
             e['logradouro'],
             e['numero'],
@@ -727,7 +714,7 @@ def api_export_excel():
             cell.alignment = Alignment(vertical='center')
 
     # Ajustar largura das colunas
-    larguras = [16, 30, 14, 12, 18, 28, 12, 30, 8, 15, 20, 20, 8, 12, 12, 25, 18, 18]
+    larguras = [16, 30, 14, 12, 18, 12, 30, 8, 15, 20, 20, 8, 12, 12, 25, 18, 18]
     for i, largura in enumerate(larguras, 1):
         ws.column_dimensions[chr(64 + i) if i <= 26 else chr(64 + (i-1)//26) + chr(65 + (i-1)%26)].width = largura
 

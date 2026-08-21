@@ -82,7 +82,6 @@ function renderizarCards(eleitores) {
                 <div><span class="label">Telefone:</span> ${e.telefone || '-'}</div>
                 <div><span class="label">Bairro:</span> ${e.bairro || '-'}</div>
                 <div><span class="label">Logradouro:</span> ${e.logradouro ? e.logradouro + ', ' + (e.numero || 'S/N') : '-'}</div>
-                <div><span class="label">Email:</span> ${e.email || '-'}</div>
                 <div><span class="label">Cadastrado por:</span> ${e.criado_por_nome || '-'}</div>
             </div>
             <div class="card-actions">
@@ -120,7 +119,6 @@ async function editarEleitor(id) {
         document.getElementById('data_nascimento').value = e.data_nascimento || '';
         document.getElementById('sexo').value = e.sexo || '';
         document.getElementById('telefone').value = e.telefone || '';
-        document.getElementById('email').value = e.email || '';
         document.getElementById('cep').value = e.cep || '';
         document.getElementById('logradouro').value = e.logradouro || '';
         document.getElementById('numero').value = e.numero || '';
@@ -157,7 +155,6 @@ async function salvarEleitor() {
         data_nascimento: document.getElementById('data_nascimento').value,
         sexo: document.getElementById('sexo').value,
         telefone: document.getElementById('telefone').value.trim(),
-        email: document.getElementById('email').value.trim(),
         cep: document.getElementById('cep').value.trim(),
         logradouro: document.getElementById('logradouro').value.trim(),
         numero: document.getElementById('numero').value.trim(),
